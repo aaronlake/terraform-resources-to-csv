@@ -20,5 +20,5 @@ Run the script:
 
 ## Todo
 
-[ ] Handle `next-page`
-[ ] Handle non-AWS cloud providers
+- [ ] Handle `next-page`
+- [ ] Handle non-AWS cloud providers
