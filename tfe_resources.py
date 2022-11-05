@@ -173,7 +173,7 @@ if __name__ == "__main__":
 
     # Get TFE_TOKEN environment variable
     TOKEN = os.environ.get('TFE_TOKEN')
-    HEADERS = {'Authorization': 'Bearer ' + TOKEN,
+    HEADERS = {'Authorization': f'Bearer {TOKEN}',
                'Content-Type': 'application/vnd.api+json'}
 
     if TOKEN is None:
