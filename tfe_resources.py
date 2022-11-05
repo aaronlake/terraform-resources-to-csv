@@ -45,7 +45,9 @@ def get_organizations():
     """
     list = []
     next_page = args.url + '/api/v2/organizations'
+
     while next_page:
+
         page = requests.get(next_page, headers=HEADERS)
 
         if page.status_code == 200:
@@ -54,7 +56,7 @@ def get_organizations():
                     org['id'], org['attributes']['created-at']))
 
         else:
-            print('Error ({}) getting organizations'.format(page.status_code))
+            print(f"Error ({page.status_code}) getting organizations)")
             exit(1)
 
         try:
@@ -73,10 +75,12 @@ def get_workspaces(orgs):
     list = []
 
     for org in orgs:
-        next_page = args.url + \
-            '/api/v2/organizations/{}/workspaces'.format(org.id)
+        next_page = f"{args.url}/api/v2/organizations/{org.id}/workspaces"
+
         while next_page:
+
             page = requests.get(next_page, headers=HEADERS)
+
             if page.status_code == 200:
                 for workspace in page.json()['data']:
                     list.append(workspaces(workspace['id'],
@@ -84,9 +88,11 @@ def get_workspaces(orgs):
                                            org.id,
                                            workspace['attributes']['created-at'],
                                            workspace['attributes']['updated-at']))
+
             else:
-                print('Error ({}) getting workspaces for "{}" organization'.format(
-                    page.status_code, org.id))
+                print(
+                    f"Error ({page.status_code}) getting workspaces "
+                    f"for organization '{org.id}'")
                 exit(1)
 
             try:
@@ -97,7 +103,7 @@ def get_workspaces(orgs):
     return list
 
 
-def get_current_state(ws):
+def get_resources(ws):
     """
     Download state file for workspace and parse resources
     GET /workspaces/:workspace_id/current-state-version
@@ -107,19 +113,23 @@ def get_current_state(ws):
     list = []
 
     for workspace in ws:
-        next_page = args.url + \
-            '/api/v2/workspaces/{}/current-state-version'.format(workspace.id)
+
+        next_page = f"{args.url}/api/v2/workspaces/"\
+                    f"{workspace.id}/current-state-version"
+
         page = requests.get(next_page, headers=HEADERS)
 
         if (page.status_code == 200):
             state_url = page.json()[
                 'data']['attributes']['hosted-state-download-url']
         else:
-            print('Error ({}) getting state for "{}" workspace'.format(
-                page.status_code, workspace.name))
+            print(
+                f"Error ({page.status_code}) getting state for "
+                f"workspace '{workspace.name}'")
             exit(1)
 
         page = requests.get(state_url, headers=HEADERS)
+
         if (page.status_code == 200):
             for resource in page.json()['resources']:
                 name = resource['name']
@@ -172,5 +182,5 @@ if __name__ == "__main__":
 
     orgs = get_organizations()
     ws = get_workspaces(orgs)
-    res = get_current_state(ws)
+    res = get_resources(ws)
     create_csv(res)
