@@ -7,19 +7,24 @@
 
 import csv
 import os
+import sys
 import argparse
 import requests
 
 description = 'Terraform Cloud/Enterprise Resource Inventory to CSV'
 
 
-class organizations:
+class Organizations:
+    """Terraform Cloud/Enterprise Organization Class"""
+
     def __init__(self, id, created_at):
         self.id = id
         self.created_at = created_at
 
 
-class workspaces:
+class Workspaces:
+    """Terraform Cloud/Enterprise Workspace Class"""
+
     def __init__(self, id, name, org, date_created, date_changed):
         self.id = id
         self.name = name
@@ -28,7 +33,9 @@ class workspaces:
         self.date_changed = date_changed
 
 
-class resources:
+class Resources:
+    """Terraform Cloud/Enterprise Resource Class"""
+
     def __init__(self, name, type, identifier, org, workspace_id, workspace_name):
         self.name = name
         self.type = type
@@ -43,94 +50,94 @@ def get_organizations():
     GET /organizations
     https://www.terraform.io/docs/cloud/api/organizations.html#list-organizations
     """
-    list = []
+    output = []
     next_page = args.url + '/api/v2/organizations'
 
     while next_page:
 
-        page = requests.get(next_page, headers=HEADERS)
+        page = requests.get(next_page, headers=HEADERS, timeout=30)
 
         if page.status_code == 200:
             for org in page.json()['data']:
-                list.append(organizations(
+                output.append(Organizations(
                     org['id'], org['attributes']['created-at']))
 
         else:
             print(f"Error ({page.status_code}) getting organizations)")
-            exit(1)
+            sys.exit()
 
         try:
             next_page = page.json()['links']['next']
         except KeyError:
             next_page = None
 
-    return list
+    return output
 
 
-def get_workspaces(orgs):
+def get_workspaces(data):
     """
     GET /organizations/:organization_name/workspaces
     https://www.terraform.io/docs/cloud/api/workspaces.html#list-workspaces
     """
-    list = []
+    output = []
 
-    for org in orgs:
+    for org in data:
         next_page = f"{args.url}/api/v2/organizations/{org.id}/workspaces"
 
         while next_page:
 
-            page = requests.get(next_page, headers=HEADERS)
+            page = requests.get(next_page, headers=HEADERS, timeout=30)
 
             if page.status_code == 200:
                 for workspace in page.json()['data']:
-                    list.append(workspaces(workspace['id'],
-                                           workspace['attributes']['name'],
-                                           org.id,
-                                           workspace['attributes']['created-at'],
-                                           workspace['attributes']['updated-at']))
+                    output.append(Workspaces(workspace['id'],
+                                             workspace['attributes']['name'],
+                                             org.id,
+                                             workspace['attributes']['created-at'],
+                                             workspace['attributes']['updated-at']))
 
             else:
                 print(
                     f"Error ({page.status_code}) getting workspaces "
                     f"for organization '{org.id}'")
-                exit(1)
+                sys.exit()
 
             try:
                 next_page = page.json()['links']['next']
             except KeyError:
                 next_page = None
 
-    return list
+    return output
 
 
-def get_resources(ws):
+def get_resources(data):
     """
     Download state file for workspace and parse resources
     GET /workspaces/:workspace_id/current-state-version
     https://www.terraform.io/docs/cloud/api/state-versions.html#show-a-state-version
     """
 
-    list = []
+    output = []
 
-    for workspace in ws:
+    for workspace in data:
 
         next_page = f"{args.url}/api/v2/workspaces/"\
                     f"{workspace.id}/current-state-version"
 
-        page = requests.get(next_page, headers=HEADERS)
+        page = requests.get(next_page, headers=HEADERS, timeout=30)
 
-        if (page.status_code == 200):
+        if page.status_code == 200:
             state_url = page.json()[
                 'data']['attributes']['hosted-state-download-url']
         else:
             print(
                 f"Error ({page.status_code}) getting state for "
                 f"workspace '{workspace.name}'")
-            exit(1)
+            sys.exit()
 
-        page = requests.get(state_url, headers=HEADERS)
+        page = requests.get(state_url, headers=HEADERS, timeout=30)
 
-        if (page.status_code == 200):
+        if page.status_code == 200:
             for resource in page.json()['resources']:
                 name = resource['name']
                 type = resource['type']
@@ -140,20 +147,21 @@ def get_resources(ws):
                     else:
                         identifier = None
 
-                    list.append(resources(name, type, identifier,
-                                workspace.org, workspace.id, workspace.name))
+                    output.append(Resources(name, type, identifier,
+                                            workspace.org, workspace.id, workspace.name))
 
-    return list
+    return output
 
 
-def create_csv(resources):
+def create_csv(data):
+    """ Create CSV file from resources list """
     fields = ['name', 'type', 'identifier',
               'org', 'workspace_id', 'workspace_name']
 
-    with open(args.output, 'w') as csvfile:
+    with open(args.output, 'w', encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fields)
         writer.writeheader()
-        for resource in resources:
+        for resource in data:
             writer.writerow({'name': resource.name,
                             'type': resource.type,
                              'identifier': resource.identifier,
@@ -178,7 +186,7 @@ if __name__ == "__main__":
 
     if TOKEN is None:
         print('Environment variable TFE_TOKEN not set')
-        exit(1)
+        sys.exit()
 
     orgs = get_organizations()
     ws = get_workspaces(orgs)
