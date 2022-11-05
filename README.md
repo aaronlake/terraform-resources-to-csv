@@ -17,8 +17,3 @@ Export the following environment variables:
 Run the script:
 
     python3 tfe_resources.py --url <your TFE URL> --output <output file>
-
-## Todo
-
-- [ ] Handle `next-page`
-- [ ] Handle non-AWS cloud providers

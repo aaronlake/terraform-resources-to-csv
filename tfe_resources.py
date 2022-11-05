@@ -39,6 +39,10 @@ class resources:
 
 
 def get_organizations():
+    """
+    GET /organizations
+    https://www.terraform.io/docs/cloud/api/organizations.html#list-organizations
+    """
     list = []
     next_page = args.url + '/api/v2/organizations'
     while next_page:
